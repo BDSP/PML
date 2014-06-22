@@ -1,0 +1,70 @@
+Quantifying Quality of Exercise
+========================================================
+
+### Executive Summary
+Value of exercise depends on not only how much of a particular activity is performed by an individual. It is also important to measure how well the individual performs a particular activity. In this analysis, attempts are made to classify ways (4 incorrect and 1 correct) in which an individual may perform barbell lifts exercise.
+
+### Data Source
+More information about the dataset can be found in the following reference:
+
+* Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H. Qualitative Activity Recognition of Weight Lifting Exercises. Proceedings of 4th International Conference in Cooperation with SIGCHI (Augmented Human '13) . Stuttgart, Germany: ACM SIGCHI, 2013.
+
+### Analysis Setup
+
+Because the prediction output is in 5 categories, classification tree method may be more appropriate to use. Package "tree" for classfication and regression is used in this data analysis.
+
+```{r}
+library(tree); library(caret); library(ggplot2);
+```
+
+### Data Pre-processing
+
+We first load data into workspace.
+```{r}
+AllData <- read.csv("pml-training.csv")
+TestData <- read.csv("pml-testing.csv")
+```
+
+Examination of the data revealed that the first column represens data sequence number and should not contribute to the output classification. If we leave it as one of the regressors, it will trick the algorithm to use the sequence value as the only variable in the classification algorithm.  This is because data for different classes were organized in sequence.  Additionally, the test dataset had no values in 100 other features. These regressors were also removed as any model created with them will not have any impact in prediction outcome.
+```{r}
+AllData <- AllData[,-1];
+TestData <- TestData[,-1]
+NACnt <- colSums(is.na(TestData));
+AllData <- AllData[,!(NACnt == 20)]
+TestData <- TestData[,!(NACnt == 20)]
+```
+To facilitate evaluation of the classifier performance, we also converted the output designation from character to numerical values.
+```{r}
+iIdx = 59;
+Target <- (AllData[,iIdx] == "A") + 2*(AllData[,iIdx] == "B") + 3*(AllData[,iIdx] == "C") + 4*(AllData[,iIdx] == "D") + 5*(AllData[,iIdx] == "E")
+```
+
+### Training and Evaluation DataSets
+
+Training dataset is partitioned into two: training set and evaluation set. Twnety percent of the data is set aside to evaluate the performance of the classifier obtained by the training algorithm.
+```{r}
+set.seed(2014)
+InTrain <- createDataPartition(y=AllData$classe,p=0.80,list=FALSE)
+training <- AllData[InTrain,]
+evaluating <- AllData[-InTrain,]
+expectT <- Target[-InTrain]
+```
+
+### Trainng and Evaluation Results
+
+Training fuction from tree package is used to obtain the classifer. All remaining 58 regressors were used in the model.
+```{r}
+modFit <- tree(classe ~ ., data=training)
+summary(modFit)
+```
+The final model used 11 variables in tree construction and the misclassification error rate was 0.09.
+
+The model was tested using the evaluation set and the misclassification error rate was 0.27.
+```{r}
+predRes <- predict(modFit,evaluating)
+actualT <- max.col(predRes,"first")
+sum(actualT != expectT)/length(expectT)
+```
+### Summary
+
+The final test dataset classification results were submitted online with 55% error rate. This result clearly indicates that other training methods should be explored to improve the classifier performance.
